@@ -158,13 +158,11 @@ def render_team_summary(df: pd.DataFrame) -> None:
             "AvgSQ",
             "BR per Poss",
             "BT per Poss",
-            "eFG%",
-            "FG%",
-            "FG2%",
-            "FG3%",
             "FGM", "FGA",
-            "FGM2", "FGA2",
-            "FGM3", "FGA3", "FTA", "FTM", "FT%",
+            "FG%", "eFG%",
+            "FGM2", "FGA2", "FG2%",
+            "FGM3", "FGA3", "FG3%",
+            "FTM", "FTA", "FT%",
             "AST", "AST%", "TOV", "TOV%", "STL", "BLK", "DEFL", "CutAST", "CutFG", "OREB", "DREB", "OREB%", "DREB%"
         ]
     ]
