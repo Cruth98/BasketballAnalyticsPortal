@@ -1,0 +1,7 @@
+[theme]
+base="light"
+primaryColor="#7F0E25"        # Bellarmine Scarlet
+backgroundColor="#FFFFFF"      # White background
+secondaryBackgroundColor="#F2F2F2"  # Light grey panels
+textColor="#000000"            # Black text
+font="sans serif"
