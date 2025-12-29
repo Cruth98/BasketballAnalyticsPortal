@@ -208,3 +208,7 @@ __marimo__/
 
 # Data files
 .DS_Store
+
+# Python Cache files
+__pycache__/
+*.pyc
