@@ -138,11 +138,20 @@ def render_team_summary(df: pd.DataFrame) -> None:
     display_df['TOV%']        = display_df['TOVpct'].map(lambda x: f"{x:.1f}%")
     display_df["OREB%"] = display_df["OREBpct"].map(lambda x: f"{x:.1f}%")
     display_df["DREB%"] = display_df["DREBpct"].map(lambda x: f"{x:.1f}%")
+    display_df["Crash%"] = (display_df["Crash"] / (display_df["Crash"] + display_df["No Crash"])* 100).round(1)
+    
+    # Create AST/TOV ratio
+    if "AST" in display_df.columns and display_df["AST"].sum() == 0 and display_df["TOV"].sum() > 0:
+        display_df["AST/TOV"] = display_df["TOV"] * -1 # create negative ratio when no assists
+    elif "AST" in display_df.columns and display_df["TOV"].sum() == 0:
+        display_df["AST/TOV"] = display_df["AST"]  # create positive ratio when no turnovers (avoid divide by zero)
+    else:
+        display_df["AST/TOV"] = (display_df["AST"] / display_df["TOV"]).replace([float("inf"), -float("inf")], 0).fillna(0).round(1)
 
     int_cols = [
         "Possessions", "Points",
         "FGM", "FGA", "FGM2", "FGA2", "FGM3", "FGA3", "FTA", "FTM",
-        "AST", "TOV", "STL", "BLK", "DEFL", "CutAST", "CutFG", "OREB", "DREB"
+        "AST", "TOV", "STL", "BLK", "DEFL", "CutAST", "CutFG", "OREB", "DREB", "Crash", "No Crash"
     ]
     
     for col in int_cols:
@@ -163,7 +172,7 @@ def render_team_summary(df: pd.DataFrame) -> None:
             "FGM2", "FGA2", "FG2%",
             "FGM3", "FGA3", "FG3%",
             "FTM", "FTA", "FT%",
-            "AST", "AST%", "TOV", "TOV%", "STL", "BLK", "DEFL", "CutAST", "CutFG", "OREB", "DREB", "OREB%", "DREB%"
+            "AST", "AST%", "TOV", "TOV%", "AST/TOV","STL", "BLK", "DEFL", "CutAST", "CutFG", "OREB", "DREB", "OREB%", "DREB%", "Crash", "No Crash", "Crash%"
         ]
     ]
 

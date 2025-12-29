@@ -290,13 +290,15 @@ def add_player_stats_from_action(df: pd.DataFrame) -> pd.DataFrame:
     - DEF     : 'Deflection'
     - OREB    : 'Offensive Rebound'
     - DREB    : 'Defensive Rebound'
+    - Crash   : 'Crash attempt at OREB'
+    - No Crash: 'No Crash attempt at OREB'
     """
     # Player rows = Team value starts with '#'
     team_str = df["Team"].astype(str)
     player_mask = team_str.str.startswith("#")
 
     # Ensure these stat columns exist and start at 0
-    stat_cols = ["AST", "CutAST", "CutFG", "TOV", "STL", "BLK", "DEFL", "OREB", "DREB", "OREB OPP"]
+    stat_cols = ["AST", "CutAST", "CutFG", "TOV", "STL", "BLK", "DEFL", "OREB", "DREB", "OREB OPP", "Crash", "No Crash"]
     for col in stat_cols:
         if col not in df.columns:
             df[col] = 0
@@ -327,6 +329,10 @@ def add_player_stats_from_action(df: pd.DataFrame) -> pd.DataFrame:
     blk_mask = actions.str.contains("Block", case=False, na=False)
     def_mask = actions.str.contains("Deflection", case=False, na=False)
 
+    # Crash & No Crash
+    no_crash_mask = actions.str.contains("No Crash", case=False, na=False)
+    crash_mask = (~no_crash_mask) & actions.str.contains("Crash", case=False, na=False)
+
 
     # Assign stats
     df.loc[player_mask & ast_mask,     "AST"]    = 1
@@ -338,6 +344,23 @@ def add_player_stats_from_action(df: pd.DataFrame) -> pd.DataFrame:
     df.loc[player_mask & def_mask,     "DEFL"]   = 1
     df.loc[player_mask & oreb_mask,    "OREB"]   = 1
     df.loc[player_mask & dreb_mask,    "DREB"]   = 1
+    df.loc[player_mask & crash_mask,   "Crash"]  = 1
+    df.loc[player_mask & no_crash_mask, "No Crash"] = 1
+
+    return df
+
+## Remove 'Junk' PossessionType && 'Other' PossessionType rows
+def drop_non_actionable_possessions(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Remove possessions that should never be user-facing, such as 'Junk' PossessionType or 'Other' LiveDrills/PossessionType.
+    """
+    df = df.copy()
+
+    if "PossessionType" in df.columns:
+        df = df[~df["PossessionType"].isin(["Junk", "Other"])]
+
+    if "LiveDrills" in df.columns:
+        df = df[df["LiveDrills"] != "Other"]
 
     return df
 
@@ -351,6 +374,7 @@ def prepare_practice_base(df: pd.DataFrame) -> pd.DataFrame:
         df
         .pipe(apply_default_labels)
         .pipe(clean_duplicate_labels)
+        .pipe(drop_non_actionable_possessions)
         .pipe(compute_shot_result)
         .pipe(add_shot_and_possession_metrics)
         .pipe(add_fg_metrics_to_df)

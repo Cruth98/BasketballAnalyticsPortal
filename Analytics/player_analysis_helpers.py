@@ -14,13 +14,13 @@ def build_player_box_score(df_players: pd.DataFrame) -> pd.DataFrame:
     df = df_players.copy()
 
     # These should exist from the 'transformations.py' pipeline
-    needed_numeric = ["Points", "FGM2", "FGA2", "FGM3", "FGA3", "ShotRating"]
+    needed_numeric = ["Points", "FGM2", "FGA2", "FGM3", "FGA3", "FTM", "FTA", "ShotRating"]
     for c in needed_numeric:
         if c not in df.columns:
             df[c] = 0
 
     # Player stat cols you already created from Action
-    stat_cols = ["AST", "TOV", "STL", "BLK", "DEFL", "CutAST", "CutFG", "OREB", "DREB"]
+    stat_cols = ["AST", "TOV", "STL", "BLK", "DEFL", "CutAST", "CutFG", "OREB", "DREB", "Crash", "No Crash"]
     for c in stat_cols:
         if c not in df.columns:
             df[c] = 0
@@ -40,14 +40,27 @@ def build_player_box_score(df_players: pd.DataFrame) -> pd.DataFrame:
     box["FGM"] = box["FGM2"] + box["FGM3"]
 
     # Percentages (avoid divide-by-zero)
+    box["FT%"] = np.where(box["FTA"] > 0, (box["FTM"] / box["FTA"]) * 100, 0.0)
     box["2FG%"] = np.where(box["FGA2"] > 0, (box["FGM2"] / box["FGA2"]) * 100, 0.0)
     box["3FG%"] = np.where(box["FGA3"] > 0, (box["FGM3"] / box["FGA3"]) * 100, 0.0)
     box["FG%"] = np.where(box["FGA"]  > 0, (box["FGM"]  / box["FGA"])  * 100, 0.0)
     box["eFG%"] = np.where(box["FGA"]  > 0, ((box["FGM2"] + (1.5 * box["FGM3"])) / box["FGA"]) * 100, 0.0)
     box["PPA"] = (box["Points"] / box["FGA"]).replace([float("inf"), -float("inf")], 0).fillna(0).round(2)
-    box["AvgSQ"] = np.where(box["ShotRating"] > 0, box["ShotRating"] / box["FGA"], 0.0)
+    box["AvgSQ"] = (box["ShotRating"] / (box["FGA"]+box["FTA"])).replace([float("inf")], 0).fillna(0).round(1)
+    box["Crash%"] = (box["Crash"] / (box["Crash"] + box["No Crash"]).replace(0, np.nan) * 100).round(1)
+
+    # Create AST/TOV ratio
+    box["AST/TOV"] = 0.0
+    mask_no_ast = (box["AST"] == 0) & (box["TOV"] > 0)
+    mask_no_tov = (box["AST"] > 0) & (box["TOV"] == 0)
+    mask_both   = (box["AST"] > 0) & (box["TOV"] > 0)
+    box.loc[mask_no_ast, "AST/TOV"] = -box.loc[mask_no_ast, "TOV"]
+    box.loc[mask_no_tov, "AST/TOV"] = box.loc[mask_no_tov, "AST"]
+    box.loc[mask_both,   "AST/TOV"] = (box.loc[mask_both, "AST"] / box.loc[mask_both, "TOV"])
+    box["AST/TOV"] = box["AST/TOV"].round(1)
 
     # Round for display friendliness (still numeric)
+    box["FT%"] = box["FT%"].round(1)
     box["2FG%"] = box["2FG%"].round(1)
     box["3FG%"] = box["3FG%"].round(1)
     box["eFG%"] = box["eFG%"].round(1)
@@ -171,7 +184,7 @@ def build_player_practice_box_scores(
         "FTM", "FTA",
         "AST", "TOV", "STL", "BLK", "DEFL",
         "CutAST", "CutFG",
-        "ShotRating",
+        "ShotRating", "OREB", "DREB", "Crash", "No Crash", 
     ]
 
     stat_cols = [c for c in stat_cols if c in df_one.columns]
@@ -196,9 +209,22 @@ def build_player_practice_box_scores(
         box["eFGPct"] = (((box["FGM2"] + (box.get("FGM3", 0) *1.5)) / box["FGA"]) \
             .replace([float("inf")], 0).fillna(0) * 100).round(1)
 
-    # Avg Shot Quality (using your SumSQ / FGA logic)
-    if "ShotRating" in box.columns and "FGA" in box.columns:
-        box["AvgSQ"] = (box["ShotRating"] / box["FGA"]).replace([float("inf")], 0).fillna(0)
+    # Avg Shot Quality (using your SumSQ / FGA + FTA logic)
+    if "ShotRating" in box.columns and "FGA" in box.columns and "FTA" in box.columns:
+        box["AvgSQ"] = (box["ShotRating"] / (box["FGA"]+box["FTA"])).replace([float("inf")], 0).fillna(0)
+
+    # Create Crash%
+    box["Crash%"] = (box["Crash"] / (box["Crash"] + box["No Crash"]).replace(0, np.nan) * 100).round(1)
+
+    # Create AST/TOV ratio
+    box["AST/TOV"] = 0.0
+    mask_no_ast = (box["AST"] == 0) & (box["TOV"] > 0)
+    mask_no_tov = (box["AST"] > 0) & (box["TOV"] == 0)
+    mask_both   = (box["AST"] > 0) & (box["TOV"] > 0)
+    box.loc[mask_no_ast, "AST/TOV"] = -box.loc[mask_no_ast, "TOV"]
+    box.loc[mask_no_tov, "AST/TOV"] = box.loc[mask_no_tov, "AST"]
+    box.loc[mask_both,   "AST/TOV"] = (box.loc[mask_both, "AST"] / box.loc[mask_both, "TOV"])
+    box["AST/TOV"] = box["AST/TOV"].round(1)
 
     pct_cols = ["FG2Pct", "FG3Pct", "FGPct", "eFGPct"]
     for c in pct_cols:
@@ -257,9 +283,9 @@ def format_player_box_score(box: pd.DataFrame) -> pd.DataFrame:
         "FGM", "FGA", "AvgSQ", "PPA", "FG%",
         "FGM2", "FGA2", "2FG%",
         "FGM3", "FGA3", "3FG%", "eFG%",
-        "FTA", "FTM", "FT%",
+        "FTM", "FTA", "FT%",
         "AST", "AST%",
-        "TOV", "TOV%",
+        "TOV", "TOV%", "AST/TOV",
         "STL", "BLK", "DEFL",
         "CutAST", "CutFG",
     ]

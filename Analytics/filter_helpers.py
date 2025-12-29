@@ -133,7 +133,7 @@ def build_practice_summary(df_team: pd.DataFrame) -> pd.DataFrame:
         [float("inf"), -float("inf")], 0
     ).fillna(0).round(1)
 
-    practice_summary['AvgSQ'] = (practice_summary['ShotRating'] / practice_summary['FGA']).fillna(0).round(1)
+    practice_summary['AvgSQ'] = (practice_summary['ShotRating'] / (practice_summary['FGA'] + practice_summary['FTA'])).fillna(0).round(1)
 
     # Avoid inf/NaN in % cols when denominators are zero
     for col in ["FGPct", "FG2Pct", "FG3Pct", "FTPct", "eFG"]:
@@ -158,7 +158,7 @@ def merge_player_totals(
     Applies the same date + possession type + drill filters used in the team view.
     """
     if player_stat_cols is None:
-        player_stat_cols = ["AST", "TOV", "STL", "BLK", "DEFL", "CutAST", "CutFG", "OREB", "DREB"]
+        player_stat_cols = ["AST", "TOV", "STL", "BLK", "DEFL", "CutAST", "CutFG", "OREB", "DREB", "Crash", "No Crash"]
 
     df = df_full.copy()
 
