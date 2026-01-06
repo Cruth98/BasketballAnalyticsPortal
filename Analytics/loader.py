@@ -110,7 +110,21 @@ def load_wars_analysis(file_path: str) -> pd.DataFrame:
         df['WarNum'].astype(str),
     ], axis=1).agg(".".join, axis=1)
 
+    # Create WarLost & GameLost column
+    df['WarLost'] = df['WarWon'].apply(lambda x: 1 if x == 0 else 0)
+    df['GameLost'] = df['GameWon'].apply(lambda x: 1 if x == 0 else 0)
+
+    ## Set column orders
+    desired_order = [
+        'GameOrder', 'Opponent', 'ConfGame',
+        'Half', 'WarNum', 'WarLabel',
+        'BU_Score', 'Opp_Score', 'ScoreDiff',
+        'WarWon', 'WarLost', 'GameWon', 'GameLost']
+    
+    ## Reorder columns
+    df = df.reindex(columns=desired_order + [col for col in df.columns if col not in desired_order])
+
     # Set index as Game.War
     df = df.set_index('Game.War')
-
+        
     return df
