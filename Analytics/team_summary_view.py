@@ -139,7 +139,8 @@ def render_team_summary(df: pd.DataFrame) -> None:
     display_df["OREB%"] = display_df["OREBpct"].map(lambda x: f"{x:.1f}%")
     display_df["DREB%"] = display_df["DREBpct"].map(lambda x: f"{x:.1f}%")
     display_df["Crash%"] = (display_df["Crash"] / (display_df["Crash"] + display_df["No Crash"])* 100).round(1)
-    
+    display_df["WolfScore"] = ((display_df["DEFL"]) + (1.25*display_df["BLK"]) + (1.5*display_df["STL"]) + (display_df['DREB']) + (2*display_df["OREB"]) + (2*display_df["CutAST"]) + (2*display_df["CutFG"]) + (2*display_df["AST"]) + (10*(display_df["Crash%"]/100)) - (1.5*display_df["TOV"])).round(1)
+
     # Create AST/TOV ratio
     if "AST" in display_df.columns and display_df["AST"].sum() == 0 and display_df["TOV"].sum() > 0:
         display_df["AST/TOV"] = display_df["TOV"] * -1 # create negative ratio when no assists
@@ -172,7 +173,7 @@ def render_team_summary(df: pd.DataFrame) -> None:
             "FGM2", "FGA2", "FG2%",
             "FGM3", "FGA3", "FG3%",
             "FTM", "FTA", "FT%",
-            "AST", "AST%", "TOV", "TOV%", "AST/TOV","STL", "BLK", "DEFL", "CutAST", "CutFG", "OREB", "DREB", "OREB%", "DREB%", "Crash", "No Crash", "Crash%"
+            "AST", "AST%", "TOV", "TOV%", "AST/TOV","STL", "BLK", "DEFL", "CutAST", "CutFG", "OREB", "DREB", "OREB%", "DREB%", "Crash", "No Crash", "Crash%", "WolfScore"
         ]
     ]
 

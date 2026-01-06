@@ -1,3 +1,4 @@
+import dis
 import pandas as pd
 import numpy as np
 
@@ -48,6 +49,7 @@ def build_player_box_score(df_players: pd.DataFrame) -> pd.DataFrame:
     box["PPA"] = (box["Points"] / box["FGA"]).replace([float("inf"), -float("inf")], 0).fillna(0).round(2)
     box["AvgSQ"] = (box["ShotRating"] / (box["FGA"]+box["FTA"])).replace([float("inf")], 0).fillna(0).round(1)
     box["Crash%"] = (box["Crash"] / (box["Crash"] + box["No Crash"]).replace(0, np.nan) * 100).round(1)
+    box["WolfScore"] = ((box["DEFL"]) + (1.25*box["BLK"]) + (1.5*box["STL"]) + (box['DREB']) + (2*box["OREB"]) + (2*box["CutAST"]) + (2*box["CutFG"]) + (2*box["AST"]) + (10*(box["Crash%"]/100)) - (1.5*box["TOV"])).round(1)
 
     # Create AST/TOV ratio
     box["AST/TOV"] = 0.0
@@ -215,6 +217,9 @@ def build_player_practice_box_scores(
 
     # Create Crash%
     box["Crash%"] = (box["Crash"] / (box["Crash"] + box["No Crash"]).replace(0, np.nan) * 100).round(1)
+
+    box["WolfScore"] = ((box["DEFL"]) + (1.25*box["BLK"]) + (1.5*box["STL"]) + (box['DREB']) + (2*box["OREB"]) + (2*box["CutAST"]) + (2*box["CutFG"]) + (2*box["AST"]) + (10*(box["Crash%"]/100)) - (1.5*box["TOV"])).round(1)
+
 
     # Create AST/TOV ratio
     box["AST/TOV"] = 0.0
