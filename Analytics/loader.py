@@ -94,3 +94,23 @@ def load_practice_data(folder_path: str) -> pd.DataFrame:
     season_data[object_cols] = season_data[object_cols].fillna("NONE")
 
     return season_data
+
+def load_wars_analysis(file_path: str) -> pd.DataFrame:
+    """
+    Load WARS analysis data from Excel.
+    """
+    df = pd.read_excel(
+        file_path,
+        sheet_name="Wars Analysis"
+    )
+    
+    # Create unique Game_War_UID using GameOrder and WarNum
+    df['Game.War'] = pd.concat([
+        df['GameOrder'].astype(str),
+        df['WarNum'].astype(str),
+    ], axis=1).agg(".".join, axis=1)
+
+    # Set index as Game.War
+    df = df.set_index('Game.War')
+
+    return df
