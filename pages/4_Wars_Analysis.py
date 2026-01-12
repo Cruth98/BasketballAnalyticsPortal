@@ -2,8 +2,9 @@ import streamlit as st
 from Analytics.layout import app_header
 from Team_Analysis import get_practice_data
 from Analytics.loader import load_wars_analysis
-from Analytics.wars_analysis_helpers import render_wars_summary_filtered, group_by_game_result, group_by_war_result, group_by_war_num
+from Analytics.wars_analysis_helpers import render_wars_summary_filtered, group_by_game_result, group_by_war_result, group_by_war_num, create_wars_visual
 import pandas as pd
+import plotly.express as px
 
 app_header()
 
@@ -38,6 +39,10 @@ def main():
     st.subheader("WARS Data by War Number")
     df_by_war_num = group_by_war_num(filtered_df)
     st.dataframe(df_by_war_num, use_container_width=True)
+
+    ## Create Visualizations
+    st.subheader("WARS Visualizations")
+    create_wars_visual(df_by_war_num)
 
 if __name__ == "__main__":
     main()

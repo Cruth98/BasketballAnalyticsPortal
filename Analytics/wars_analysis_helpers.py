@@ -2,6 +2,7 @@ import pandas as pd
 import streamlit as st
 import re
 import numpy as np
+import plotly.express as px
 
 def select_opponent(df: pd.DataFrame):
     if "Opponent" not in df.columns:
@@ -173,6 +174,7 @@ def group_by_game_result(df: pd.DataFrame):
     ## Round numeric columns
     numeric_cols = ['AvgBUScore', 'AvgOppScore', 'AvgScoreDiff']
     summary_df[numeric_cols] = summary_df[numeric_cols].round(1)
+    summary_df['WinPct'] = ((summary_df['WarsWon'] / summary_df['TotalWars'])*100).round(1)
     summary_df.set_index('GameResult', inplace=True)
     return summary_df
 
@@ -228,3 +230,13 @@ def group_by_war_num(df: pd.DataFrame):
     summary_df[numeric_cols] = summary_df[numeric_cols].round(1)
     summary_df['WinPct'] = ((summary_df['WarsWon'] / summary_df['TotalWars'])*100).round(1)
     return summary_df
+
+## Create visual to show aggregated WARS summary view
+def create_wars_visual(df: pd.DataFrame):
+    if df.empty:
+        st.info("No data to display.")
+        return
+
+    fig = px.bar(df, x=df.index, y='WinPct', title="WARS Win Percentage by War Number")
+    st.plotly_chart(fig, use_container_width=True)
+    return fig
