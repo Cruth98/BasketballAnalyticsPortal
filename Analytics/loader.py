@@ -113,13 +113,21 @@ def load_wars_analysis(file_path: str) -> pd.DataFrame:
     # Create WarLost & GameLost column
     df['WarLost'] = df['WarWon'].apply(lambda x: 1 if x == 0 else 0)
     df['GameLost'] = df['GameWon'].apply(lambda x: 1 if x == 0 else 0)
+    
+    # Create WarResult & GameResult columns
+    df['WarResult'] = df['WarWon'].apply(lambda x: 'Win' if x == 1 else 'Loss')
+    df['GameResult'] = df['GameWon'].apply(lambda x: 'Win' if x == 1 else 'Loss')
+
+    # Create ConfGame & HomeGame categorical columns
+    df['ConfGame'] = df['ConfGame'].apply(lambda x: 'Yes' if x == 1 else 'No')
+    df['HomeGame'] = df['HomeGame'].apply(lambda x: 'Yes' if x == 1 else 'No')
 
     ## Set column orders
     desired_order = [
-        'GameOrder', 'Opponent', 'ConfGame',
+        'GameOrder', 'Opponent', 'ConfGame', 'HomeGame',
         'Half', 'WarNum', 'WarLabel',
         'BU_Score', 'Opp_Score', 'ScoreDiff',
-        'WarWon', 'WarLost', 'GameWon', 'GameLost']
+        'WarResult', 'GameResult']
     
     ## Reorder columns
     df = df.reindex(columns=desired_order + [col for col in df.columns if col not in desired_order])
