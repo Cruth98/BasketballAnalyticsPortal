@@ -84,3 +84,15 @@ def layer_in_metrics(df):
     df['Game%'] = ((df['Possessions'] / full_possession_count) * 100).round(1).fillna(0)
     return df
 
+def load_full_season_defense_data(folder_path = '/Users/mbbfilm/Documents/BasketballAnalyticsPortal/Data/DefenseGrading') -> pd.DataFrame:
+    full_season_df = pd.DataFrame()
+    import os
+    for file_name in os.listdir(folder_path):
+        file_path = os.path.join(folder_path, file_name)
+        game_df = load_defense_game_data(file_path)
+        game_df = transform_df(game_df)
+        game_df = aggregate_by_defense_per_game(game_df)
+        game_df = layer_in_metrics(game_df)
+        full_season_df = pd.concat([full_season_df, game_df], ignore_index=True)
+    return full_season_df
+
