@@ -27,13 +27,17 @@ def main():
         return
     
     ## Group by Opponent
-    st.subheader("Defense Data by Opponent")
     df_by_opponent = aggregate_by_opponent(filtered_df)
+    
+    ## Display Defense by Opponent in Streamlit
+    st.subheader("Defense Data by Opponent")
     st.dataframe(df_by_opponent, use_container_width=True)
 
     ## Group by DefenseType
-    st.subheader("Defense Data by Defense Type")
     df_by_defense = aggregate_by_defense(filtered_df)
+
+    ## Display Defense by Defense Type in Streamlit
+    st.subheader("Defense Data by Defense Type")
     st.dataframe(df_by_defense, use_container_width=True)
 
     ## Create Visualizations

@@ -1,19 +1,43 @@
+import os
 import pandas as pd
 import numpy as np
 import streamlit as st
 import plotly.express as px
 
-def load_defense_game_data(file):
-    cols_to_keep = ['Action', 'DefenseType', 'Shot Quality']
-    df = pd.read_csv(file, usecols=cols_to_keep)
-    df['Action'] = df['Action'].fillna('Foul Drawn')
-    df['Opponent'] = file
+def load_defense_game_data(file_path: str) -> pd.DataFrame:
+    cols_to_keep = ["Action", "DefenseType", "Shot Quality"]
+
+    try:
+        df = pd.read_csv(
+            file_path,
+            usecols=cols_to_keep,
+            encoding="utf-8",
+            encoding_errors="replace",
+        )
+    except ValueError as e:
+        # Most common: usecols not found (file has different headers)
+        raise ValueError(f"Error loading file (columns mismatch): {file_path}\n{e}") from e
+    except UnicodeDecodeError as e:
+        # If encoding still fails for some reason
+        raise ValueError(f"Error loading file (encoding issue): {file_path}\n{e}") from e
+    except Exception as e:
+        raise ValueError(f"Error loading file: {file_path}\n{e}") from e
+
+    # Normalize
+    if "Action" in df.columns:
+        df["Action"] = df["Action"].fillna("Foul Drawn")
+
+    # Set opponent from filename (cleaner than storing the full path)
+    opponent = os.path.splitext(os.path.basename(file_path))[0]
+    df["Opponent"] = opponent
+
     return df
 
 def transform_df(df):
     df = df.copy()  # Create a copy of the DataFrame to avoid SettingWithCopyWarning
     ## Create 'SQ' column based on 'Shot Quality' values
     df['SQ'] = df['Shot Quality'].apply(lambda x: 0 if 'No Shot' in x else x[-1]).astype(int)
+    df['Attempts'] = df['Shot Quality'].apply(lambda x: 0 if 'No Shot' in x else 1).astype(int)
 
     ## ----------- Create FGM and FGA columns based on 'Action' values -----------
     df['Action'] = df['Action'].astype(str)  # Ensure 'Action' is string type
@@ -57,8 +81,12 @@ def aggregate_full_df(df):
         TOV=('TOV', 'sum'),
         PaintTouch=('PaintTouch', 'sum'),
         OREB=('OREB', 'sum'),
-        AvgSQ=('SQ', 'mean')
+        SumSQ=('SQ', 'sum'),
+        Attempts=('Attempts', 'sum')
     ).sort_values(by='FGA', ascending=False).reset_index()
+
+    df['AvgSQ'] = (df['SumSQ'] / df['Attempts']).round(1).fillna(0)
+    # df.drop(columns=['SumSQ'], inplace=True) ## Drop SumSQ after utilizing it for AvgSQ calculation
 
     return df
 
@@ -70,10 +98,10 @@ def layer_in_metrics(df):
     df['3FG%'] = ((df['FGM3'] / df['FGA3'])*100).round(1).fillna(0)
     df['eFG%'] = (((df['FGM2'] + (1.5 * df['FGM3'])) / df['FGA'])*100).round(1).fillna(0)
     df['3PAr'] = ((df['FGA3'] / df['FGA'])*100).round(1).fillna(0)
-    df['AvgSQ'] = df['AvgSQ'].round(1)
 
     ## Add Custom Columns
     df['Possessions'] = df['FGA'] + df['TOV'] - df['OREB']
+    df['Possessions'] = df['Possessions'].replace(0, 1)  # Replace 0 possessions with NaN to avoid division by zero
 
 
     ## Create Possession Based Metrics
@@ -83,23 +111,38 @@ def layer_in_metrics(df):
 
     ## Create % of Possession Metrics
     df['OppOREB%'] = ((df['OREB'] / (df['FGA']-df['FGM'])) * 100).round(1).fillna(0)
-    df['OppOREB%'] = df['OppOREB%'].replace(np.inf, 100)
+    df['OppOREB%'] = df['OppOREB%'].replace(np.inf, 100) ## Designed to set rare occurrence of 1 OREB on 0 Missed FG to 100% (Typically from Free Throw instance)
     df['PT%'] = ((df['PaintTouch'] / df['Possessions']) * 100).round(1).fillna(0)
     df['OppTOV%'] = ((df['TOV'] / df['Possessions']) * 100).round(1).fillna(0)
     full_possession_count = df['Possessions'].sum()
     df['Game%'] = ((df['Possessions'] / full_possession_count) * 100).round(1).fillna(0)
     return df
 
-def load_full_season_defense_data(folder_path = '/Users/mbbfilm/Documents/BasketballAnalyticsPortal/Data/DefenseGrading') -> pd.DataFrame:
+def load_full_season_defense_data(
+    folder_path: str = "/Users/mbbfilm/Documents/BasketballAnalyticsPortal/Data/DefenseGrading",
+) -> pd.DataFrame:
     full_season_df = pd.DataFrame()
-    import os
+
     for file_name in os.listdir(folder_path):
+        # 1) Skip hidden files (e.g., .DS_Store) and non-CSV files
+        if file_name.startswith("."):
+            continue
+        if not file_name.lower().endswith(".csv"):
+            continue
+
         file_path = os.path.join(folder_path, file_name)
+
+        # 2) Skip directories (safety)
+        if not os.path.isfile(file_path):
+            continue
+
         game_df = load_defense_game_data(file_path)
         game_df = transform_df(game_df)
         game_df = aggregate_full_df(game_df)
         game_df = layer_in_metrics(game_df)
+
         full_season_df = pd.concat([full_season_df, game_df], ignore_index=True)
+
     return full_season_df
 
 ## ------------------- FILTER SELECTIONS ------------------- ##
@@ -169,9 +212,45 @@ def render_defense_summary_filtered(df: pd.DataFrame):
     col7.metric("Avg eFG%", f"{avg_efg:.1f}")
 
     st.subheader("Full Defense Data")
+    
+    ## Choose columns to display, in order
+    display_columns = [
+        "Opponent",
+        "DefenseType",
+        "Possessions",
+        'FGM2',
+        'FGA2',
+        'FGM3',
+        'FGA3',
+        'FGM',
+        'FGA',
+        'Points',
+        'FG%',
+        '2FG%',
+        '3FG%',
+        'eFG%',
+        '3PAr',
+        'AvgSQ',
+        'TOV',
+        'OppTOV%',
+        'PaintTouch',
+        'PT%',
+        'OREB',
+        'OppOREB%',
+        'PPA',
+        "PPP",
+        "DRTG",
+        "Game%",
+    ]
+    
+    ## Set up Display df
+    display_df = df.copy()
+    display_df = display_df[display_columns]
 
-    if not df.empty:
-        st.dataframe(df, use_container_width=True)
+
+    ## Display df in Streamlit
+    if not display_df.empty:
+        st.dataframe(display_df, use_container_width=True)
 
     return df
 
@@ -189,12 +268,43 @@ def aggregate_by_opponent(df):
         TOV=('TOV', 'sum'),
         PaintTouch=('PaintTouch', 'sum'),
         OREB=('OREB', 'sum'),
-        AvgSQ=('AvgSQ', 'mean')
+        SumSQ=('SumSQ', 'sum'),
+        Attempts=('Attempts', 'sum')
     ).sort_values(by='FGA', ascending=False).reset_index()
 
     df.set_index('Opponent', inplace=True)
     df = layer_in_metrics(df)
-    df.drop(columns=['Game%'], inplace=True)
+    df['AvgSQ'] = (df['SumSQ'] / df['Attempts']).round(1).fillna(0)
+
+    ## Choose columns to display, in order
+    display_columns = [
+        "Possessions",
+        'FGM2',
+        'FGA2',
+        'FGM3',
+        'FGA3',
+        'FGM',
+        'FGA',
+        'Points',
+        'FG%',
+        '2FG%',
+        '3FG%',
+        'eFG%',
+        '3PAr',
+        'AvgSQ',
+        'TOV',
+        'OppTOV%',
+        'PaintTouch',
+        'PT%',
+        'OREB',
+        'OppOREB%',
+        'PPA',
+        "PPP",
+        "DRTG",
+    ]
+    
+    ## Set up Display df
+    df = df[display_columns]
 
     return df
 
@@ -212,11 +322,44 @@ def aggregate_by_defense(df):
         TOV=('TOV', 'sum'),
         PaintTouch=('PaintTouch', 'sum'),
         OREB=('OREB', 'sum'),
-        AvgSQ=('AvgSQ', 'mean')
+        SumSQ=('SumSQ', 'sum'),
+        Attempts=('Attempts', 'sum')
     ).sort_values(by='FGA', ascending=False).reset_index()
 
     df.set_index('DefenseType', inplace=True)
     df = layer_in_metrics(df)
+    df['AvgSQ'] = (df['SumSQ'] / df['Attempts']).round(1).fillna(0)
+    df['Poss%'] = ((df['Possessions'] / df['Possessions'].sum()) * 100).round(1).fillna(0)
+    ## Choose columns to display, in order
+    display_columns = [
+        "Possessions",
+        'Poss%',
+        'FGM2',
+        'FGA2',
+        'FGM3',
+        'FGA3',
+        'FGM',
+        'FGA',
+        'Points',
+        'FG%',
+        '2FG%',
+        '3FG%',
+        'eFG%',
+        '3PAr',
+        'AvgSQ',
+        'TOV',
+        'OppTOV%',
+        'PaintTouch',
+        'PT%',
+        'OREB',
+        'OppOREB%',
+        'PPA',
+        "PPP",
+        "DRTG",
+    ]
+    
+    ## Set up Display df
+    df = df[display_columns]
 
     return df
 
